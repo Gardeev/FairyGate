@@ -12,11 +12,11 @@
         .subtitle { color: #4a4a6a; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 25px; margin-top: 5px; }
         .btn { background: #004422; color: #00ff88; border: 1px solid #004422; padding: 15px 30px; border-radius: 20px; cursor: pointer; width: 100%; font-weight: bold; transition: 0.3s; margin-top: 15px; font-size: 14px; }
         .btn:hover { background: #006633; box-shadow: 0 0 15px #00ff88; }
-        .btn:disabled { background: #1a1a1a; color: #444; border-color: #111; cursor: not-allowed; box-shadow: none; }
+        .btn-alt { background: #440022; color: #ff0088; border-color: #440022; }
+        .btn-alt:hover { background: #660033; box-shadow: 0 0 15px #ff0088; }
         input { width: 100%; padding: 15px; background: #1a1a3a; border: 1px solid #333; border-radius: 15px; color: white; box-sizing: border-box; margin-top: 15px; font-size: 14px; outline: none; }
-        #status { margin-top: 20px; font-size: 12px; color: #666; line-height: 1.5; min-height: 40px; }
-        #decryptBtn { display: none; background: #440022; color: #ff0088; border-color: #440022; }
-        #decryptBtn:hover { background: #660033; box-shadow: 0 0 15px #ff0088; }
+        #status { margin-top: 20px; font-size: 12px; color: #00fff2; min-height: 40px; word-break: break-all; }
+        .result-box { background: #000; padding: 10px; border-radius: 10px; margin-top: 10px; display: none; border: 1px dashed #00fff2; }
     </style>
 </head>
 <body>
@@ -24,88 +24,75 @@
         <h1>FAIRBLOCK</h1>
         <div class="subtitle">Web3 Privacy Layer</div>
         <button class="btn" id="connectBtn">ПОДКЛЮЧИТЬ КОШЕЛЕК</button>
-        <input type="text" id="messageInput" placeholder="Введите текст для шифрования...">
-        <button class="btn" id="encryptBtn">ЗАШИФРОВАТЬ</button>
-        <button class="btn" id="decryptBtn">РАСШИФРОВАТЬ ДАННЫЕ</button>
-        <div id="status">Подключите Rabby Wallet (сеть Sepolia)</div>
+        
+        <input type="text" id="userInput" placeholder="Текст для шифрования ИЛИ хэш для расшифровки">
+        
+        <button class="btn" id="encryptBtn">ЗАШИФРОВАТЬ (ГАЗ)</button>
+        <button class="btn btn-alt" id="decryptBtn">РАСШИФРОВАТЬ</button>
+        
+        <div id="status">Подключите Rabby Wallet (Sepolia)</div>
+        <div id="resultBox" class="result-box"></div>
     </div>
 
     <script>
         let provider;
         let signer;
-        const SEPOLIA_ID = '0xaa36a7';
 
         async function connect() {
             if (typeof window.ethereum !== 'undefined') {
                 try {
-                    // Принудительное переключение на Sepolia
-                    try {
-                        await window.ethereum.request({
-                            method: 'wallet_switchEthereumChain',
-                            params: [{ chainId: SEPOLIA_ID }],
-                        });
-                    } catch (err) {
-                        if (err.code === 4902) {
-                            await window.ethereum.request({
-                                method: 'wallet_addEthereumChain',
-                                params: [{
-                                    chainId: SEPOLIA_ID,
-                                    chainName: 'Sepolia',
-                                    rpcUrls: ['https://rpc.ankr.com/eth_sepolia'],
-                                    nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-                                    blockExplorerUrls: ['https://sepolia.etherscan.io']
-                                }]
-                            });
-                        }
-                    }
-
                     provider = new ethers.providers.Web3Provider(window.ethereum);
                     await provider.send("eth_requestAccounts", []);
                     signer = provider.getSigner();
-                    const address = await signer.getAddress();
-                    
-                    document.getElementById('connectBtn').innerText = 'СЕПОЛИЯ: ' + address.slice(0,6) + '...' + address.slice(-4);
-                    document.getElementById('status').innerText = 'Кошелек готов к шифрованию в Sepolia';
-                } catch (e) {
-                    document.getElementById('status').innerText = 'Ошибка: ' + e.message;
-                }
-            } else {
-                alert('Установите Rabby Wallet!');
-            }
+                    const addr = await signer.getAddress();
+                    document.getElementById('connectBtn').innerText = 'OK: ' + addr.slice(0,6);
+                    document.getElementById('status').innerText = 'Готов к работе в Sepolia';
+                } catch (e) { alert(e.message); }
+            } else { alert('Установите Rabby!'); }
         }
 
+        // ШИФРОВАНИЕ: Отправка текста в блокчейн
         async function encrypt() {
-            if (!signer) return alert('Сначала подключите кошелек!');
-            const msg = document.getElementById('messageInput').value;
-            if (!msg) return alert('Введите текст');
-            
+            if (!signer) return alert('Подключите кошелек!');
+            const text = document.getElementById('userInput').value;
+            if (!text) return alert('Введите текст');
+
             try {
-                document.getElementById('status').innerText = 'Ожидание подтверждения в Rabby...';
-                document.getElementById('encryptBtn').disabled = true;
-
-                // Реальная транзакция с данными (msg) и газом
+                document.getElementById('status').innerText = 'Создаем транзакцию...';
                 const tx = await signer.sendTransaction({
-                    to: await signer.getAddress(), // Отправляем самому себе для записи данных
-                    value: ethers.utils.parseEther("0.0001"), 
-                    data: ethers.utils.hexlify(ethers.utils.toUtf8Bytes(msg))
+                    to: await signer.getAddress(),
+                    value: ethers.utils.parseEther("0.0001"),
+                    data: ethers.utils.hexlify(ethers.utils.toUtf8Bytes(text))
                 });
-
-                document.getElementById('status').innerText = 'Транзакция отправлена в сеть...';
-                await tx.wait(); // Ожидание майнинга блока
-
-                document.getElementById('status').innerText = 'Успешно! Данные зашифрованы в блоке.';
-                document.getElementById('encryptBtn').style.display = 'none';
-                document.getElementById('decryptBtn').style.display = 'block';
-
-            } catch (e) {
-                document.getElementById('status').innerText = 'Ошибка: ' + (e.reason || e.message);
-                document.getElementById('encryptBtn').disabled = false;
-            }
+                
+                document.getElementById('status').innerText = 'Ждем подтверждения сети...';
+                await tx.wait();
+                
+                document.getElementById('status').innerText = 'УСПЕХ! Отправь этот хэш другу:';
+                document.getElementById('resultBox').style.display = 'block';
+                document.getElementById('resultBox').innerText = tx.hash;
+                document.getElementById('userInput').value = ''; 
+            } catch (e) { document.getElementById('status').innerText = 'Ошибка: ' + e.message; }
         }
 
-        function decrypt() {
-            const msg = document.getElementById('messageInput').value;
-            alert('Дешифровка Fairblock выполнена! Оригинальное сообщение: ' + msg);
+        // РАСШИФРОВКА: Чтение текста из блокчейна по хэшу
+        async function decrypt() {
+            const hash = document.getElementById('userInput').value;
+            if (!hash || !hash.startsWith('0x')) return alert('Введите корректный хэш транзакции (0x...)');
+
+            try {
+                document.getElementById('status').innerText = 'Ищем данные в блоке...';
+                const tx = await provider.getTransaction(hash);
+                
+                if (tx && tx.data) {
+                    const decodedText = ethers.utils.toUtf8String(tx.data);
+                    document.getElementById('status').innerText = 'РАСШИФРОВАНО:';
+                    document.getElementById('resultBox').style.display = 'block';
+                    document.getElementById('resultBox').innerText = decodedText;
+                } else {
+                    document.getElementById('status').innerText = 'Данные не найдены';
+                }
+            } catch (e) { document.getElementById('status').innerText = 'Ошибка: Неверный хэш или сеть'; }
         }
 
         document.getElementById('connectBtn').onclick = connect;
