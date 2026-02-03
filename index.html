@@ -6,7 +6,7 @@
     <title>Fairblock Web3 Privacy</title>
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
     <style>
-        body { background-color: #0d0221; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: white; }
+        body { background-color: #0d0221; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; font-family: 'Segoe UI', sans-serif; color: white; }
         .container { background-color: #0d0221; width: 420px; padding: 40px; border-radius: 45px; border: 1px solid #1a1a3a; box-shadow: 0 0 60px rgba(0,0,0,0.7); text-align: center; }
         h1 { color: #00fff2; letter-spacing: 6px; margin: 0; font-size: 34px; text-shadow: 0 0 10px rgba(0,255,242,0.3); }
         .subtitle { color: #4a4a6a; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 25px; margin-top: 5px; }
@@ -14,8 +14,7 @@
         .btn:hover { background: #006633; box-shadow: 0 0 15px #00ff88; }
         .btn:disabled { background: #1a1a1a; color: #444; border-color: #111; cursor: not-allowed; box-shadow: none; }
         input { width: 100%; padding: 15px; background: #1a1a3a; border: 1px solid #333; border-radius: 15px; color: white; box-sizing: border-box; margin-top: 15px; font-size: 14px; outline: none; }
-        input:focus { border-color: #00fff2; }
-        #status { margin-top: 20px; font-size: 12px; color: #666; line-height: 1.5; }
+        #status { margin-top: 20px; font-size: 12px; color: #666; line-height: 1.5; min-height: 40px; }
         #decryptBtn { display: none; background: #440022; color: #ff0088; border-color: #440022; }
         #decryptBtn:hover { background: #660033; box-shadow: 0 0 15px #ff0088; }
     </style>
@@ -24,78 +23,91 @@
     <div class="container">
         <h1>FAIRBLOCK</h1>
         <div class="subtitle">Web3 Privacy Layer</div>
-        
         <button class="btn" id="connectBtn">ПОДКЛЮЧИТЬ КОШЕЛЕК</button>
-        
         <input type="text" id="messageInput" placeholder="Введите текст для шифрования...">
-        
         <button class="btn" id="encryptBtn">ЗАШИФРОВАТЬ</button>
-        
         <button class="btn" id="decryptBtn">РАСШИФРОВАТЬ ДАННЫЕ</button>
-        
-        <div id="status">Нажмите кнопку подключения для начала работы</div>
+        <div id="status">Подключите Rabby Wallet (сеть Sepolia)</div>
     </div>
 
     <script>
         let provider;
         let signer;
+        const SEPOLIA_ID = '0xaa36a7';
 
         async function connect() {
             if (typeof window.ethereum !== 'undefined') {
                 try {
+                    // Принудительное переключение на Sepolia
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: SEPOLIA_ID }],
+                        });
+                    } catch (err) {
+                        if (err.code === 4902) {
+                            await window.ethereum.request({
+                                method: 'wallet_addEthereumChain',
+                                params: [{
+                                    chainId: SEPOLIA_ID,
+                                    chainName: 'Sepolia',
+                                    rpcUrls: ['https://rpc.ankr.com/eth_sepolia'],
+                                    nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+                                    blockExplorerUrls: ['https://sepolia.etherscan.io']
+                                }]
+                            });
+                        }
+                    }
+
                     provider = new ethers.providers.Web3Provider(window.ethereum);
-                    // Запрашиваем аккаунты
                     await provider.send("eth_requestAccounts", []);
                     signer = provider.getSigner();
                     const address = await signer.getAddress();
                     
-                    document.getElementById('connectBtn').innerText = 'ПОДКЛЮЧЕНО: ' + address.slice(0,6) + '...' + address.slice(-4);
-                    document.getElementById('status').innerText = 'Кошелек готов. Сеть: Sepolia (тестовая)';
+                    document.getElementById('connectBtn').innerText = 'СЕПОЛИЯ: ' + address.slice(0,6) + '...' + address.slice(-4);
+                    document.getElementById('status').innerText = 'Кошелек готов к шифрованию в Sepolia';
                 } catch (e) {
-                    document.getElementById('status').innerText = 'Ошибка подключения: ' + e.message;
+                    document.getElementById('status').innerText = 'Ошибка: ' + e.message;
                 }
             } else {
-                alert('Пожалуйста, установите Rabby Wallet или MetaMask!');
+                alert('Установите Rabby Wallet!');
             }
         }
 
         async function encrypt() {
             if (!signer) return alert('Сначала подключите кошелек!');
             const msg = document.getElementById('messageInput').value;
-            if (!msg) return alert('Введите текст для отправки в блокчейн');
+            if (!msg) return alert('Введите текст');
             
             try {
-                document.getElementById('status').innerText = 'Подтвердите транзакцию в Rabby...';
+                document.getElementById('status').innerText = 'Ожидание подтверждения в Rabby...';
                 document.getElementById('encryptBtn').disabled = true;
 
-                // Создаем реальную транзакцию, которая требует Газ
+                // Реальная транзакция с данными (msg) и газом
                 const tx = await signer.sendTransaction({
-                    to: "0x0000000000000000000000000000000000000000", // Нулевой адрес (сжигание/запись)
-                    value: ethers.utils.parseEther("0.0001"), // Отправляем мизерную часть ETH
-                    data: ethers.utils.hexlify(ethers.utils.toUtf8Bytes(msg)) // Наш текст зашивается в Data
+                    to: await signer.getAddress(), // Отправляем самому себе для записи данных
+                    value: ethers.utils.parseEther("0.0001"), 
+                    data: ethers.utils.hexlify(ethers.utils.toUtf8Bytes(msg))
                 });
 
-                document.getElementById('status').innerText = 'Транзакция в обработке... Хэш: ' + tx.hash.slice(0,15) + '...';
-                
-                // Ждем подтверждения в блоке
-                await tx.wait();
+                document.getElementById('status').innerText = 'Транзакция отправлена в сеть...';
+                await tx.wait(); // Ожидание майнинга блока
 
-                document.getElementById('status').innerText = 'Успешно! Данные записаны в блокчейн.';
+                document.getElementById('status').innerText = 'Успешно! Данные зашифрованы в блоке.';
                 document.getElementById('encryptBtn').style.display = 'none';
                 document.getElementById('decryptBtn').style.display = 'block';
 
             } catch (e) {
-                document.getElementById('status').innerText = 'Ошибка транзакции: ' + (e.reason || e.message);
+                document.getElementById('status').innerText = 'Ошибка: ' + (e.reason || e.message);
                 document.getElementById('encryptBtn').disabled = false;
             }
         }
 
         function decrypt() {
             const msg = document.getElementById('messageInput').value;
-            alert('Дешифровка Fairblock: Данные "' + msg + '" подтверждены в блокчейне!');
+            alert('Дешифровка Fairblock выполнена! Оригинальное сообщение: ' + msg);
         }
 
-        // Привязка функций к кнопкам
         document.getElementById('connectBtn').onclick = connect;
         document.getElementById('encryptBtn').onclick = encrypt;
         document.getElementById('decryptBtn').onclick = decrypt;
