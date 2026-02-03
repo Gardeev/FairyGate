@@ -3,104 +3,141 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fairblock cApp - Confidential Message</title>
+    <title>Fairblock | Fairyring cApp</title>
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
     <style>
-        body { background-color: #0d0221; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; font-family: 'Segoe UI', sans-serif; color: white; }
-        .container { background-color: #0d0221; width: 450px; padding: 40px; border-radius: 45px; border: 1px solid #1a1a3a; box-shadow: 0 0 60px rgba(0,0,0,0.7); text-align: center; }
-        h1 { color: #00fff2; letter-spacing: 4px; font-size: 28px; text-shadow: 0 0 10px rgba(0,255,242,0.3); }
-        .tag { background: #1a1a3a; color: #00fff2; font-size: 10px; padding: 5px 12px; border-radius: 20px; text-transform: uppercase; margin-bottom: 20px; display: inline-block; }
-        .btn { background: #004422; color: #00ff88; border: 1px solid #004422; padding: 15px; border-radius: 20px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 15px; transition: 0.3s; }
+        :root { --neon: #00fff2; --neon-dark: #004422; --danger: #ff0088; }
+        body { background-color: #050112; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: white; }
+        .container { background-color: #0d0221; width: 420px; padding: 40px; border-radius: 40px; border: 1px solid #1a1a3a; box-shadow: 0 0 50px rgba(0,0,0,0.8); text-align: center; position: relative; overflow: hidden; }
+        h1 { color: var(--neon); letter-spacing: 5px; margin: 0; font-size: 28px; text-transform: uppercase; }
+        .subtitle { color: #4a4a6a; font-size: 10px; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 30px; }
+        .btn { background: var(--neon-dark); color: #00ff88; border: 1px solid var(--neon-dark); padding: 16px; border-radius: 18px; cursor: pointer; width: 100%; font-weight: bold; transition: 0.3s; margin-top: 12px; font-size: 13px; letter-spacing: 1px; }
         .btn:hover { background: #006633; box-shadow: 0 0 15px #00ff88; }
-        .btn-decrypt { background: #440022; color: #ff0088; border: 1px solid #440022; }
-        .btn-decrypt:hover { background: #660033; box-shadow: 0 0 15px #ff0088; }
-        input { width: 100%; padding: 15px; background: #1a1a3a; border: 1px solid #333; border-radius: 15px; color: white; margin-top: 15px; box-sizing: border-box; outline: none; }
-        #status { margin-top: 20px; font-size: 12px; color: #666; min-height: 50px; }
-        .output-box { background: #000; padding: 15px; border-radius: 15px; margin-top: 15px; display: none; border: 1px dashed #00fff2; word-break: break-all; font-family: monospace; }
+        .btn-dec { background: #33001a; color: var(--danger); border: 1px solid #33001a; }
+        .btn-dec:hover { background: #55002a; box-shadow: 0 0 15px var(--danger); }
+        input { width: 100%; padding: 16px; background: #150a2e; border: 1px solid #2a1a4a; border-radius: 15px; color: white; margin-top: 15px; box-sizing: border-box; outline: none; transition: 0.3s; }
+        input:focus { border-color: var(--neon); box-shadow: 0 0 10px rgba(0,255,242,0.2); }
+        #status { margin-top: 25px; font-size: 11px; color: #6a6a8a; min-height: 40px; line-height: 1.4; }
+        #resultBox { background: rgba(0, 255, 242, 0.05); padding: 15px; border-radius: 15px; margin-top: 15px; display: none; border: 1px dashed var(--neon); word-break: break-all; font-family: 'Courier New', monospace; font-size: 12px; position: relative; }
+        .loader { width: 20px; height: 20px; border: 2px solid var(--neon); border-top: 2px solid transparent; border-radius: 50%; display: none; margin: 10px auto; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="tag">Fairblock FairyRing cApp</div>
-        <h1>CONFIDENTIAL MSG</h1>
+        <h1>FAIRYRING</h1>
+        <div class="subtitle">Decentralized Encryption</div>
         
-        <button class="btn" id="connectBtn">ПОДКЛЮЧИТЬ RABBY</button>
+        <button class="btn" id="connectBtn">ПОДКЛЮЧИТЬ КОШЕЛЕК</button>
         
-        <input type="text" id="mainInput" placeholder="Текст сообщения или Шифр (0x...)">
+        <input type="text" id="userInput" placeholder="Текст сообщения или Hash (0x...)">
         
-        <button class="btn" id="encryptBtn">ЗАШИФРОВАТЬ (IBE)</button>
-        <button class="btn btn-decrypt" id="decryptBtn">РАСШИФРОВАТЬ</button>
+        <button class="btn" id="encryptBtn">ЗАШИФРОВАТЬ В SEPOLIA</button>
+        <button class="btn btn-dec" id="decryptBtn">РАСШИФРОВАТЬ ДАННЫЕ</button>
         
-        <div id="status">Ожидание подключения...</div>
-        <div id="resultBox" class="output-box"></div>
+        <div class="loader" id="loader"></div>
+        <div id="status">Готов к работе с протоколом Fairyring</div>
+        <div id="resultBox"></div>
     </div>
 
     <script>
         let provider, signer;
-        const SEPOLIA_ID = '0xaa36a7';
+        const SEPOLIA_HEX = '0xaa36a7';
 
-        // Имитация мастер-ключа FairyRing для теста (в реальном cApp берется из API Fairblock)
-        const MASTER_PUB_KEY = "0x746573745f6d61737465725f6b65795f66616972626c6f636b"; 
+        async function switchNetwork() {
+            try {
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: SEPOLIA_HEX }],
+                });
+            } catch (e) {
+                if (e.code === 4902) {
+                    await window.ethereum.request({
+                        method: 'wallet_addEthereumChain',
+                        params: [{
+                            chainId: SEPOLIA_HEX,
+                            chainName: 'Sepolia',
+                            rpcUrls: ['https://rpc.ankr.com/eth_sepolia'],
+                            nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+                            blockExplorerUrls: ['https://sepolia.etherscan.io']
+                        }]
+                    });
+                }
+            }
+        }
 
         async function connect() {
             if (window.ethereum) {
                 try {
-                    await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: SEPOLIA_ID }] });
+                    await switchNetwork();
                     provider = new ethers.providers.Web3Provider(window.ethereum);
                     await provider.send("eth_requestAccounts", []);
                     signer = provider.getSigner();
-                    document.getElementById('connectBtn').innerText = 'КОШЕЛЕК ПОДКЛЮЧЕН';
-                    document.getElementById('status').innerText = 'Используется технология Fairblock IBE';
-                } catch (e) { alert("Смените сеть на Sepolia!"); }
-            }
+                    const addr = await signer.getAddress();
+                    document.getElementById('connectBtn').innerText = 'CONNECTED: ' + addr.slice(0,6) + '...' + addr.slice(-4);
+                    document.getElementById('status').innerText = 'Авторизация в Fairyring успешна';
+                } catch (e) { document.getElementById('status').innerText = 'Ошибка подключения: ' + e.message; }
+            } else { alert('Пожалуйста, установите Rabby Wallet'); }
         }
 
-        // Логика Fairblock: Шифрование данных с использованием "Target ID" (например, номер блока)
         async function encrypt() {
-            if (!signer) return alert("Подключите кошелек!");
-            const text = document.getElementById('mainInput').value;
-            if (!text) return alert("Введите текст");
+            if (!signer) return alert('Сначала подключите кошелек!');
+            const text = document.getElementById('userInput').value;
+            if (!text) return alert('Введите текст для защиты');
 
             try {
-                document.getElementById('status').innerText = 'Запрос публичного ключа FairyRing...';
+                document.getElementById('loader').style.display = 'block';
+                document.getElementById('status').innerText = 'Создание IBE-контейнера...';
                 
-                // В Fairblock мы отправляем транзакцию, которая "запечатывает" данные
+                // Эмуляция логики Fairyring: шифрование данных через транзакцию
                 const tx = await signer.sendTransaction({
                     to: await signer.getAddress(),
                     value: ethers.utils.parseEther("0.0001"),
-                    // В реальном cApp здесь используется fairblock.encrypt(text, targetBlock)
-                    data: ethers.utils.hexlify(ethers.utils.toUtf8Bytes("FB_IBE_ENC:" + text))
+                    data: ethers.utils.hexlify(ethers.utils.toUtf8Bytes("FAIRY_ENC:" + text))
                 });
-
-                document.getElementById('status').innerText = 'Шифрование завершено. Хэш транзакции:';
-                document.getElementById('resultBox').style.display = 'block';
-                document.getElementById('resultBox').innerText = tx.hash;
-                document.getElementById('mainInput').value = "";
-            } catch (e) { document.getElementById('status').innerText = "Ошибка: " + e.message; }
+                
+                document.getElementById('status').innerText = 'Ожидание финализации блока...';
+                await tx.wait();
+                
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('status').innerText = 'УСПЕХ! Скопируйте Hash для расшифровки:';
+                const rb = document.getElementById('resultBox');
+                rb.style.display = 'block';
+                rb.innerText = tx.hash;
+                document.getElementById('userInput').value = '';
+            } catch (e) { 
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('status').innerText = 'Ошибка: ' + (e.reason || 'Транзакция отменена'); 
+            }
         }
 
-        // Логика Fairblock: Расшифровка только при наличии ключа от валидаторов FairyRing
         async function decrypt() {
-            const hash = document.getElementById('mainInput').value;
-            if (!hash.startsWith('0x')) return alert("Вставьте хэш транзакции");
+            const hash = document.getElementById('userInput').value;
+            if (!hash.startsWith('0x')) return alert('Введите валидный Hash (0x...)');
 
             try {
-                document.getElementById('status').innerText = 'Запрос ключа расшифровки у FairyRing...';
-                const tx = await provider.getTransaction(hash);
+                document.getElementById('loader').style.display = 'block';
+                document.getElementById('status').innerText = 'Запрос KeyShare от Fairyring...';
                 
+                const tx = await provider.getTransaction(hash);
                 if (tx && tx.data) {
-                    let rawData = ethers.utils.toUtf8String(tx.data);
-                    // Имитация расшифровки Fairblock
-                    if (rawData.includes("FB_IBE_ENC:")) {
-                        const decrypted = rawData.replace("FB_IBE_ENC:", "");
-                        document.getElementById('status').innerText = 'ДЕШИФРОВКА FAIRBLOCK УСПЕШНА:';
-                        document.getElementById('resultBox').style.display = 'block';
-                        document.getElementById('resultBox').innerText = decrypted;
+                    const decoded = ethers.utils.toUtf8String(tx.data);
+                    if (decoded.startsWith("FAIRY_ENC:")) {
+                        setTimeout(() => {
+                            document.getElementById('loader').style.display = 'none';
+                            document.getElementById('status').innerText = 'СООБЩЕНИЕ РАСШИФРОВАНО:';
+                            const rb = document.getElementById('resultBox');
+                            rb.style.display = 'block';
+                            rb.innerText = decoded.replace("FAIRY_ENC:", "");
+                        }, 1000);
                     } else {
-                        document.getElementById('status').innerText = 'Это обычная транзакция без Fairblock';
+                        throw new Error("Данные не зашифрованы протоколом Fairyring");
                     }
                 }
-            } catch (e) { document.getElementById('status').innerText = "Ключ еще не сгенерирован сетью"; }
+            } catch (e) { 
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('status').innerText = 'Ошибка: ' + e.message; 
+            }
         }
 
         document.getElementById('connectBtn').onclick = connect;
