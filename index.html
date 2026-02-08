@@ -11,63 +11,54 @@
         :root {
             --primary: #00fff2;
             --accent: #0084ff;
-            --glass: rgba(8, 12, 22, 0.85); 
-            --border: rgba(255, 255, 255, 0.08);
+            --glass: rgba(5, 8, 18, 0.85); 
+            --border: rgba(255, 255, 255, 0.1);
         }
 
         * { box-sizing: border-box; transition: all 0.3s ease; }
 
         body {
             margin: 0;
-            padding: 0;
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            /* Цвет-заглушка на случай, если картинка не грузится */
-            background-color: #030712; 
-            background-image: url('background.png');
-            background-repeat: no-repeat;
-            background-position: center center;
-            background-attachment: fixed;
+            background: #030712 url('background.png') no-repeat center center fixed;
             background-size: cover;
             font-family: 'Plus Jakarta Sans', sans-serif;
             color: white;
             overflow-x: hidden;
         }
 
-        /* ТЕМНЫЙ ФИЛЬТР ПОВЕРХ ВСЕГО ФОНА: Гарантированно скрывает логотип */
+        /* ГАРАНТИРОВАННОЕ ЗАКРЫТИЕ ЛОГОТИПА НА ФОНЕ */
         body::before {
             content: '';
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: radial-gradient(circle at center, rgba(3, 7, 18, 0.7) 0%, rgba(3, 7, 18, 0.95) 100%);
+            background: radial-gradient(circle, rgba(3, 7, 18, 0.6) 0%, rgba(3, 7, 18, 0.95) 100%);
             z-index: 1;
-            pointer-events: none;
         }
 
         .container {
             position: relative;
             z-index: 10;
             background: var(--glass);
-            /* Сильное размытие */
-            backdrop-filter: blur(40px) saturate(150%);
-            -webkit-backdrop-filter: blur(40px) saturate(150%);
+            backdrop-filter: blur(50px) saturate(150%);
+            -webkit-backdrop-filter: blur(50px) saturate(150%);
             width: 95%;
             max-width: 440px;
             padding: 40px;
             border-radius: 40px;
             border: 1px solid var(--border);
-            box-shadow: 0 40px 100px rgba(0, 0, 0, 0.8);
+            box-shadow: 0 50px 100px rgba(0, 0, 0, 0.9);
             text-align: center;
-            margin: 20px;
         }
 
         header h1 { 
             font-family: 'Playfair Display', serif;
-            font-size: clamp(30px, 8vw, 40px);
+            font-size: 40px;
             margin: 0;
-            background: linear-gradient(to bottom, #fff, #999);
+            background: linear-gradient(to bottom, #fff, #888);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
@@ -80,7 +71,6 @@
             margin-bottom: 30px;
         }
 
-        /* Кнопка Connect */
         .wallet-wrapper { margin-bottom: 25px; min-height: 55px; }
 
         .btn-connect {
@@ -90,30 +80,23 @@
             padding: 14px 28px;
             border-radius: 18px;
             font-weight: 700;
-            font-size: 14px;
             cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.4);
         }
 
-        .btn-connect:hover {
-            background: var(--primary);
-            transform: translateY(-2px);
-        }
+        .btn-connect:hover { background: var(--primary); transform: translateY(-2px); }
 
         .account-pill {
             display: none;
             background: rgba(0, 255, 242, 0.1);
             border: 1px solid rgba(0, 255, 242, 0.3);
             padding: 12px 20px;
-            border-radius: 20px;
+            border-radius: 100px;
             color: var(--primary);
             font-family: 'JetBrains Mono', monospace;
             font-size: 13px;
         }
 
-        /* Поля ввода */
         .field-label {
             display: block;
             font-size: 10px;
@@ -131,7 +114,6 @@
             border-radius: 16px;
             color: white;
             outline: none;
-            font-size: 14px;
             margin-bottom: 20px;
         }
 
@@ -142,7 +124,6 @@
             padding: 18px;
             border-radius: 16px;
             font-weight: 700;
-            font-size: 13px;
             text-transform: uppercase;
             letter-spacing: 1px;
             cursor: pointer;
@@ -185,7 +166,7 @@
     <div class="container">
         <header>
             <h1>Fairblock</h1>
-            <div class="subtitle">Private Encryption Layer</div>
+            <div class="subtitle">Secure Identity Encryption</div>
         </header>
 
         <div class="wallet-wrapper">
@@ -197,17 +178,17 @@
         <input type="text" class="input-box" id="recipientAddr" placeholder="0x...">
 
         <span class="field-label">Secret Payload</span>
-        <input type="text" class="input-box" id="messageText" placeholder="Private message...">
+        <input type="text" class="input-box" id="messageText" placeholder="Write message...">
 
         <button class="main-btn" id="encryptBtn">Execute Encryption</button>
 
         <hr>
 
         <span class="field-label">Hash Handle</span>
-        <input type="text" class="input-box" id="hashInput" placeholder="Enter TX Hash">
+        <input type="text" class="input-box" id="hashInput" placeholder="0x...hash">
         <button class="main-btn btn-decrypt" id="decryptBtn">Decrypt Message</button>
 
-        <div id="status-msg">System Ready</div>
+        <div id="status-msg">System Standby</div>
         <div id="output-area"></div>
     </div>
 
@@ -215,8 +196,9 @@
         let provider, signer;
         const SEPOLIA_ID = '0xaa36a7';
 
+        // Инициализация при загрузке
         async function init() {
-            if (window.ethereum) {
+            if (typeof window.ethereum !== 'undefined') {
                 provider = new ethers.providers.Web3Provider(window.ethereum);
                 const accounts = await provider.listAccounts();
                 if (accounts.length > 0) updateUI(accounts);
@@ -237,43 +219,27 @@
         }
 
         async function connect() {
-            if (!window.ethereum) return alert("Install Rabby or MetaMask");
-            try {
-                await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: SEPOLIA_ID }] });
-                const accounts = await provider.send("eth_requestAccounts", []);
-                updateUI(accounts);
-            } catch (e) { console.error(e); }
-        }
-
-        async function encrypt() {
-            if (!signer) return alert("Connect Wallet!");
-            const recp = document.getElementById('recipientAddr').value.trim();
-            const msg = document.getElementById('messageText').value;
-            if (!ethers.utils.isAddress(recp)) return alert("Invalid Address");
+            if (typeof window.ethereum === 'undefined') return alert("Please install Rabby or MetaMask");
             
             try {
-                document.getElementById('status-msg').innerText = "Encrypting...";
-                const payload = `IBE_ID:${recp.toLowerCase()}|DATA:${msg}`;
-                const tx = await signer.sendTransaction({
-                    to: recp,
-                    value: ethers.utils.parseEther("0.0001"),
-                    data: ethers.utils.hexlify(ethers.utils.toUtf8Bytes(payload))
-                });
-                document.getElementById('output-area').style.display = 'block';
-                document.getElementById('output-area').innerText = "Hash: " + tx.hash;
-                document.getElementById('status-msg').innerText = "Success!";
-            } catch (e) { document.getElementById('status-msg').innerText = "Error"; }
-        }
+                // 1. Инициализируем провайдера заново для надежности
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                
+                // 2. Запрашиваем аккаунты
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                
+                // 3. Пытаемся переключить сеть
+                try {
+                    await window.ethereum.request({
+                        method: 'wallet_switchEthereumChain',
+                        params: [{ chainId: SEPOLIA_ID }]
+                    });
+                } catch (switchError) {
+                    console.log("Network switch handled by user");
+                }
 
-        async function decrypt() {
-            if (!signer) return alert("Connect Wallet!");
-            const hash = document.getElementById('hashInput').value.trim();
-            try {
-                document.getElementById('status-msg').innerText = "Decrypting...";
-                const tx = await provider.getTransaction(hash);
-                const decoded = ethers.utils.toUtf8String(tx.data);
-                const msg = decoded.split('|')[1].replace("DATA:", "");
-                document.getElementById('output-area').style.display = 'block';
-                document.getElementById('output-area').innerText = "Message: " + msg;
-                document.getElementById('status-msg').innerText = "Decrypted ✅";
+                updateUI(accounts);
+                document.getElementById('status-msg').innerText = "Wallet Connected";
             } catch (e) {
+                console.error(e);
+                document.getElementById('status-msg').innerText = "Connection Fa
