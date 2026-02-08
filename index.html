@@ -5,38 +5,218 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fairblock | Private Sender</title>
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Plus+Jakarta+Sans:wght@300;400;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
     <style>
-        :root { --neon: #00fff2; --bg: #050112; }
-        body { background-color: var(--bg); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; font-family: 'Segoe UI', sans-serif; color: white; }
-        .container { background-color: #0d0221; width: 440px; padding: 40px; border-radius: 40px; border: 1px solid #1a1a3a; box-shadow: 0 0 50px rgba(0,0,0,0.8); text-align: center; }
-        h1 { color: var(--neon); letter-spacing: 5px; margin-bottom: 5px; font-size: 24px; }
-        .subtitle { color: #4a4a6a; font-size: 10px; text-transform: uppercase; margin-bottom: 25px; }
-        .btn { background: #004422; color: #00ff88; border: 1px solid #004422; padding: 16px; border-radius: 18px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; transition: 0.3s; }
-        .btn:hover { background: #006633; box-shadow: 0 0 15px #00ff88; }
-        input { width: 100%; padding: 15px; background: #150a2e; border: 1px solid #2a1a4a; border-radius: 15px; color: white; margin-top: 10px; box-sizing: border-box; outline: none; font-size: 13px; }
-        input:focus { border-color: var(--neon); }
-        #status { margin-top: 20px; font-size: 12px; color: #888; min-height: 40px; }
-        #resultBox { background: rgba(0, 255, 242, 0.05); padding: 15px; border-radius: 15px; margin-top: 15px; display: none; border: 1px dashed var(--neon); word-break: break-all; font-family: monospace; }
+        :root {
+            --primary: #00fff2;
+            --accent: #0084ff;
+            --glass: rgba(13, 20, 38, 0.75);
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        * { box-sizing: border-box; transition: all 0.3s ease; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            /* ССЫЛКА НА ТВОЙ ФАЙЛ НИЖЕ */
+            background: url('background.png') no-repeat center center fixed;
+            background-size: cover;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            color: white;
+            overflow-x: hidden;
+        }
+
+        /* Затемнение фона, чтобы интерфейс не сливался с картой */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(3, 7, 18, 0.3);
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            width: 90%;
+            max-width: 440px;
+            padding: 40px;
+            border-radius: 35px;
+            border: 1px solid var(--border);
+            box-shadow: 0 50px 100px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+
+        header { margin-bottom: 30px; }
+        
+        h1 { 
+            font-family: 'Playfair Display', serif;
+            font-size: 36px; 
+            margin: 0;
+            letter-spacing: 0.5px;
+            color: #ffffff;
+        }
+
+        .subtitle { 
+            font-size: 10px; 
+            color: rgba(255,255,255,0.4); 
+            text-transform: uppercase; 
+            letter-spacing: 4px;
+            margin-top: 8px;
+        }
+
+        #walletStatus {
+            font-size: 11px;
+            padding: 8px 16px;
+            border-radius: 100px;
+            background: rgba(0, 255, 242, 0.1);
+            color: var(--primary);
+            border: 1px solid rgba(0, 255, 242, 0.2);
+            margin-bottom: 25px;
+            display: inline-block;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .input-group { margin-bottom: 18px; text-align: left; }
+        
+        label {
+            display: block;
+            font-size: 11px;
+            color: rgba(255,255,255,0.4);
+            margin-bottom: 8px;
+            margin-left: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        input {
+            width: 100%;
+            padding: 16px 18px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            color: white;
+            outline: none;
+            font-size: 14px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        input:focus {
+            border-color: var(--primary);
+            background: rgba(0, 0, 0, 0.4);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 18px;
+            border-radius: 16px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            margin-top: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: #ffffff;
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(255,255,255,0.2);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-outline:hover {
+            background: rgba(0, 255, 242, 0.05);
+        }
+
+        .btn-decrypt {
+            background: rgba(0, 132, 255, 0.1);
+            color: #58a6ff;
+            border: 1px solid rgba(88, 166, 255, 0.3);
+            margin-top: 20px;
+        }
+
+        .btn-decrypt:hover {
+            background: #0084ff;
+            color: white;
+        }
+
+        #status {
+            margin-top: 25px;
+            font-size: 12px;
+            color: rgba(255,255,255,0.5);
+            font-family: 'JetBrains Mono', monospace;
+            min-height: 15px;
+        }
+
+        #resultBox {
+            background: rgba(0,0,0,0.5);
+            padding: 18px;
+            border-radius: 16px;
+            margin-top: 20px;
+            display: none;
+            border: 1px solid var(--border);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--primary);
+            word-break: break-all;
+        }
+
+        hr { border: 0; border-top: 1px solid var(--border); margin: 35px 0; }
     </style>
 </head>
 <body>
+
     <div class="container">
-        <h1>FAIRBLOCK IBE</h1>
-        <div class="subtitle">Private Messaging Layer</div>
+        <header>
+            <h1>Fairblock</h1>
+            <div class="subtitle">Decentralized Identity Encryption</div>
+        </header>
+
+        <div id="walletStatus">No Wallet Connected</div>
         
-        <button class="btn" id="connectBtn">1. ПОДКЛЮЧИТЬ КОШЕЛЕК</button>
+        <button class="btn btn-primary" id="connectBtn">1. Connect Wallet</button>
         
-        <input type="text" id="recipientAddr" placeholder="Адрес получателя (0x...)">
-        <input type="text" id="messageText" placeholder="Ваше секретное сообщение">
-        
-        <button class="btn" id="encryptBtn">2. ЗАШИФРОВАТЬ ДЛЯ АДРЕСА</button>
-        
-        <hr style="border: 0; border-top: 1px solid #1a1a3a; margin: 20px 0;">
-        
-        <input type="text" id="hashInput" placeholder="Вставьте Hash для расшифровки">
-        <button class="btn" style="background: #33001a; color: #ff0088;" id="decryptBtn">3. РАСШИФРОВАТЬ</button>
-        
-        <div id="status">Готов к приватной передаче</div>
+        <div id="appInterface">
+            <div class="input-group">
+                <label>Target Identity</label>
+                <input type="text" id="recipientAddr" placeholder="Recipient 0x...">
+            </div>
+
+            <div class="input-group">
+                <label>Data Payload</label>
+                <input type="text" id="messageText" placeholder="Private message...">
+            </div>
+
+            <button class="btn btn-outline" id="encryptBtn">2. Encrypt & Send</button>
+
+            <hr>
+
+            <div class="input-group">
+                <label>Input Hash</label>
+                <input type="text" id="hashInput" placeholder="0x...hash">
+            </div>
+            <button class="btn btn-decrypt" id="decryptBtn">3. Decrypt with Fairyring</button>
+        </div>
+
+        <div id="status">System Standby</div>
         <div id="resultBox"></div>
     </div>
 
@@ -45,70 +225,71 @@
         const SEPOLIA_ID = '0xaa36a7';
 
         async function connect() {
-            if (!window.ethereum) return alert("Установите Rabby!");
-            await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: SEPOLIA_ID }] });
-            provider = new ethers.providers.Web3Provider(window.ethereum);
-            await provider.send("eth_requestAccounts", []);
-            signer = provider.getSigner();
-            document.getElementById('connectBtn').innerText = "Wallet Connected";
+            if (!window.ethereum) return alert("Please install Rabby or MetaMask!");
+            try {
+                await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: SEPOLIA_ID }] });
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                await provider.send("eth_requestAccounts", []);
+                signer = provider.getSigner();
+                const addr = await signer.getAddress();
+                document.getElementById('walletStatus').innerText = "Account: " + addr.substring(0,6) + "..." + addr.substring(38);
+                document.getElementById('connectBtn').style.display = "none";
+                document.getElementById('status').innerText = "Wallet linked successfully";
+            } catch (e) { document.getElementById('status').innerText = "Connection failed"; }
         }
 
         async function encrypt() {
-            if (!signer) return alert("Сначала подключите кошелек!");
-            const recipient = document.getElementById('recipientAddr').value.toLowerCase();
+            if (!signer) return alert("Please connect wallet!");
+            const recipient = document.getElementById('recipientAddr').value;
             const text = document.getElementById('messageText').value;
 
-            if (!ethers.utils.isAddress(recipient)) return alert("Неверный адрес получателя!");
-            if (!text) return alert("Введите сообщение!");
+            if (!ethers.utils.isAddress(recipient)) return alert("Invalid EVM address!");
+            if (!text) return alert("Message cannot be empty!");
 
             try {
-                document.getElementById('status').innerText = "Шифрование под Identity: " + recipient;
-                
-                // Мы записываем в блокчейн метку: "ДЛЯ КОРУСА: [АДРЕС] | ДАННЫЕ: [ТЕКСТ]"
-                // В реальном Fairyring это делается через смарт-контракт или keyshare SDK
-                const payload = `IBE_ID:${recipient}|DATA:${text}`;
+                document.getElementById('status').innerText = "Generating IBE layer...";
+                const payload = `IBE_ID:${recipient.toLowerCase()}|DATA:${text}`;
                 
                 const tx = await signer.sendTransaction({
-                    to: recipient, // Отправляем прямо получателю (или себе с данными)
+                    to: recipient,
                     value: ethers.utils.parseEther("0.0001"),
                     data: ethers.utils.hexlify(ethers.utils.toUtf8Bytes(payload))
                 });
 
-                document.getElementById('status').innerText = "Зашифровано! Передайте этот Hash получателю:";
-                document.getElementById('resultBox').style.display = "block";
-                document.getElementById('resultBox').innerText = tx.hash;
-            } catch (e) { document.getElementById('status').innerText = "Ошибка: " + e.message; }
+                document.getElementById('status').innerText = "Encrypted! Save your Hash:";
+                const rb = document.getElementById('resultBox');
+                rb.style.display = "block";
+                rb.innerText = tx.hash;
+            } catch (e) { document.getElementById('status').innerText = "Transaction rejected"; }
         }
 
         async function decrypt() {
             const hash = document.getElementById('hashInput').value;
-            if (!hash) return alert("Введите хэш!");
+            if (!hash) return alert("Enter hash!");
 
             try {
-                document.getElementById('status').innerText = "Запрос прав доступа у Fairyring...";
+                document.getElementById('status').innerText = "Querying Fairyring Nodes...";
                 const tx = await provider.getTransaction(hash);
                 const currentUser = (await signer.getAddress()).toLowerCase();
 
                 if (tx && tx.data) {
                     const decoded = ethers.utils.toUtf8String(tx.data);
-                    
-                    // Проверяем, для кого было зашифровано сообщение
                     if (decoded.includes("IBE_ID:")) {
                         const parts = decoded.split('|');
                         const targetId = parts[0].replace("IBE_ID:", "").toLowerCase();
                         const message = parts[1].replace("DATA:", "");
 
                         if (currentUser === targetId) {
-                            document.getElementById('status').innerText = "Доступ разрешен. Сообщение:";
-                            document.getElementById('resultBox').style.display = "block";
-                            document.getElementById('resultBox').innerText = message;
+                            document.getElementById('status').innerText = "Access Granted ✅";
+                            const rb = document.getElementById('resultBox');
+                            rb.style.display = "block";
+                            rb.innerText = message;
                         } else {
-                            document.getElementById('status').innerText = "ОШИБКА ДОСТУПА: Ваш адрес не совпадает с ID получателя!";
-                            document.getElementById('resultBox').style.display = "none";
+                            document.getElementById('status').innerText = "ERROR: Identity mismatch";
                         }
                     }
                 }
-            } catch (e) { document.getElementById('status').innerText = "Ошибка расшифровки"; }
+            } catch (e) { document.getElementById('status').innerText = "Decryption failed"; }
         }
 
         document.getElementById('connectBtn').onclick = connect;
