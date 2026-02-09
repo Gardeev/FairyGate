@@ -23,20 +23,11 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            background: #030712 url('background.png') no-repeat center center fixed;
-            background-size: cover;
+            background: #030712; /* Упростил фон для надежности, если картинки нет */
+            background-image: radial-gradient(circle at center, #0a1025 0%, #030712 100%);
             font-family: 'Plus Jakarta Sans', sans-serif;
             color: white;
             overflow-x: hidden;
-        }
-
-        /* ГАРАНТИРОВАННОЕ ЗАКРЫТИЕ ЛОГОТИПА НА ФОНЕ */
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: radial-gradient(circle, rgba(3, 7, 18, 0.6) 0%, rgba(3, 7, 18, 0.95) 100%);
-            z-index: 1;
         }
 
         .container {
@@ -194,52 +185,119 @@
 
     <script>
         let provider, signer;
-        const SEPOLIA_ID = '0xaa36a7';
+        const SEPOLIA_ID = '0xaa36a7'; // Chain ID для Sepolia (11155111 в HEX)
 
-        // Инициализация при загрузке
+        // Инициализация при загрузке страницы
         async function init() {
             if (typeof window.ethereum !== 'undefined') {
                 provider = new ethers.providers.Web3Provider(window.ethereum);
-                const accounts = await provider.listAccounts();
-                if (accounts.length > 0) updateUI(accounts);
                 
+                // Проверяем, авторизован ли уже кошелек
+                try {
+                    const accounts = await provider.listAccounts();
+                    if (accounts.length > 0) {
+                        updateUI(accounts);
+                    }
+                } catch (e) {
+                    console.error("Initialization error:", e);
+                }
+
+                // Слушатели событий кошелька
                 window.ethereum.on('accountsChanged', (accs) => {
                     if (accs.length > 0) updateUI(accs);
                     else window.location.reload();
                 });
+
+                window.ethereum.on('chainChanged', () => {
+                    window.location.reload();
+                });
+            } else {
+                document.getElementById('status-msg').innerText = "Please install MetaMask or Rabby";
             }
         }
 
+        // Обновление интерфейса при успешном коннекте
         function updateUI(accounts) {
-            document.getElementById('connectBtn').style.display = 'none';
+            const connectBtn = document.getElementById('connectBtn');
             const pill = document.getElementById('accountPill');
+            
+            connectBtn.style.display = 'none';
             pill.style.display = 'inline-block';
-            pill.innerText = accounts[0].substring(0,6) + '...' + accounts[0].substring(38);
+            pill.innerText = accounts[0].substring(0, 6) + '...' + accounts[0].substring(38);
+            
             signer = provider.getSigner();
+            document.getElementById('status-msg').innerText = "Wallet Connected";
         }
 
+        // Функция подключения кошелька
         async function connect() {
-            if (typeof window.ethereum === 'undefined') return alert("Please install Rabby or MetaMask");
-            
+            if (typeof window.ethereum === 'undefined') {
+                return alert("Please install Rabby or MetaMask");
+            }
+
             try {
-                // 1. Инициализируем провайдера заново для надежности
-                provider = new ethers.providers.Web3Provider(window.ethereum);
+                document.getElementById('status-msg').innerText = "Connecting...";
                 
-                // 2. Запрашиваем аккаунты
+                // 1. Запрос аккаунтов
                 const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                 
-                // 3. Пытаемся переключить сеть
+                // 2. Инициализация провайдера
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+
+                // 3. Попытка переключить сеть на Sepolia
                 try {
                     await window.ethereum.request({
                         method: 'wallet_switchEthereumChain',
                         params: [{ chainId: SEPOLIA_ID }]
                     });
                 } catch (switchError) {
-                    console.log("Network switch handled by user");
+                    // Если сети Sepolia нет в кошельке (код 4902)
+                    if (switchError.code === 4902) {
+                        try {
+                            await window.ethereum.request({
+                                method: 'wallet_addEthereumChain',
+                                params: [{
+                                    chainId: SEPOLIA_ID,
+                                    chainName: 'Sepolia Test Network',
+                                    rpcUrls: ['https://rpc.sepolia.org'],
+                                    nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+                                    blockExplorerUrls: ['https://sepolia.etherscan.io']
+                                }]
+                            });
+                        } catch (addError) {
+                            console.error("User rejected adding network");
+                        }
+                    }
                 }
 
                 updateUI(accounts);
-                document.getElementById('status-msg').innerText = "Wallet Connected";
             } catch (e) {
-                console.error(e);
-                document.getElementById('status-msg').innerText = "Connection Fa
+                console.error("Connection error:", e);
+                document.getElementById('status-msg').innerText = "Connection Failed";
+            }
+        }
+
+        // Назначаем действия кнопкам после загрузки HTML
+        document.addEventListener('DOMContentLoaded', () => {
+            init();
+
+            // Кнопка Connect
+            document.getElementById('connectBtn').addEventListener('click', connect);
+
+            // Кнопка Encrypt (логика для будущего)
+            document.getElementById('encryptBtn').addEventListener('click', () => {
+                if (!signer) return alert("Please connect wallet first");
+                const msg = document.getElementById('messageText').value;
+                if(!msg) return alert("Enter a message");
+                document.getElementById('status-msg').innerText = "Encryption process started...";
+            });
+
+            // Кнопка Decrypt (логика для будущего)
+            document.getElementById('decryptBtn').addEventListener('click', () => {
+                if (!signer) return alert("Please connect wallet first");
+                document.getElementById('status-msg').innerText = "Decrypting handle...";
+            });
+        });
+    </script>
+</body>
+</html>
