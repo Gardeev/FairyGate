@@ -4,10 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FairyGate | Private Identity Layer</title>
-    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.2/ethers.umd.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Plus+Jakarta+Sans:wght@300;400;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
     
     <style>
+        /* Твои оригинальные стили сохранены полностью */
         :root {
             --primary: #00fff2;
             --accent: #0084ff;
@@ -202,73 +203,73 @@
         <span class="field-label">Secret Payload</span>
         <input type="text" class="input-box" id="messageText" placeholder="Confidential message...">
 
-        <span class="field-label">Decryption Lock</span>
-        <select class="input-box" id="timeLock">
-            <option value="0">Instant Access</option>
-            <option value="15">15 Minutes Lock</option>
-            <option value="60">1 Hour Lock</option>
-            <option value="1440">24 Hours Lock</option>
-        </select>
+        <span class="field-label">System Value (Number)</span>
+        <input type="number" class="input-box" id="secretNum" value="1" placeholder="Enter number...">
 
         <button class="main-btn" id="encryptBtn">Execute & Encrypt</button>
 
         <div id="output-area"></div>
 
         <hr>
-        <span class="field-label">Encryption Handle</span>
-        <input type="text" class="input-box" id="hashInput" placeholder="Enter handle to decrypt...">
-        <button class="main-btn btn-decrypt" id="decryptBtn">Decrypt Message</button>
+        <button class="main-btn btn-decrypt" id="decryptBtn">Scan & Decrypt My Inbox</button>
 
         <div id="status-msg">System Standby</div>
 
         <div class="history-section" id="historySection"></div>
     </div>
 
-    <script>
+    <script type="module">
+        // Импорт логики из твоеного app.js (который мы создали в GitHub)
+        import { initClient, packData, unpackData } from './js/app.js';
+
         let provider, signer;
         const SEPOLIA_ID = '0xaa36a7';
-        const SERVICE_FEE = "0.00005"; 
-        const TREASURY_ADDRESS = "0x8DaD749034f3de19718d54484F56141FDb80539D"; 
+        // Адрес токена для Sepolia (Stablecoin Testnet)
+        const TOKEN_ADDRESS = "0x81a2c161c0327464430658516eE74A669feFC7bC";
 
         async function init() {
             loadHistory();
             if (typeof window.ethereum !== 'undefined') {
-                provider = new ethers.providers.Web3Provider(window.ethereum);
+                provider = new ethers.BrowserProvider(window.ethereum);
                 const accounts = await provider.listAccounts();
                 if (accounts.length > 0) updateUI(accounts);
 
-                window.ethereum.on('accountsChanged', (accs) => {
+                window.ethereum.on('accountsChanged', async (accs) => {
                     if (accs.length > 0) updateUI(accs);
                     else window.location.reload();
                 });
             }
         }
 
-        function updateUI(accounts) {
+        async function updateUI(accounts) {
             document.getElementById('connectBtn').style.display = 'none';
             document.getElementById('accountGroup').style.display = 'flex';
-            document.getElementById('accountPill').innerText = accounts[0].substring(0,6) + '...' + accounts[0].substring(38);
-            signer = provider.getSigner();
+            const addr = await accounts[0].getAddress();
+            document.getElementById('accountPill').innerText = addr.substring(0,6) + '...' + addr.substring(38);
+            signer = await provider.getSigner();
             document.getElementById('status-msg').innerText = "Node Online | Sepolia Gateway";
         }
 
         async function connect() {
             try {
-                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
                 await window.ethereum.request({
                     method: 'wallet_switchEthereumChain',
                     params: [{ chainId: SEPOLIA_ID }]
                 });
+                const accounts = await provider.listAccounts();
                 updateUI(accounts);
             } catch (e) { console.error(e); }
         }
 
+        // ОТПРАВКА (ENCRYPT)
         async function handleEncrypt() {
             if (!signer) return alert("Connect wallet!");
             const target = document.getElementById('recipientAddr').value.trim();
             const msg = document.getElementById('messageText').value;
-            const lock = document.getElementById('timeLock').value;
-            if (!ethers.utils.isAddress(target) || !msg) return alert("Invalid inputs.");
+            const num = parseInt(document.getElementById('secretNum').value || 0);
+
+            if (!ethers.isAddress(target) || !msg) return alert("Invalid inputs.");
 
             const btn = document.getElementById('encryptBtn');
             const status = document.getElementById('status-msg');
@@ -276,87 +277,86 @@
 
             btn.disabled = true;
             btn.classList.add('loading');
-            status.innerText = "Anchoring to Fairyring...";
+            status.innerText = "Generating ZK-Proof...";
 
             try {
-                const txData = ethers.utils.hexlify(ethers.utils.toUtf8Bytes(`FairyGate|To:${target}|Lock:${lock}`));
-                const tx = await signer.sendTransaction({
-                    to: TREASURY_ADDRESS,
-                    value: ethers.utils.parseEther(SERVICE_FEE),
-                    data: txData
-                });
+                const client = await initClient();
+                
+                // 1. Инициализация аккаунта (нужна подпись MetaMask)
+                status.innerText = "Identity Handshake (Sign)...";
+                await client.ensureAccount(signer);
 
-                status.innerText = "Mining Transaction...";
-                const receipt = await tx.wait();
+                // 2. Упаковка Текста и Числа
+                const secretValue = packData(msg, num);
 
-                const handle = receipt.transactionHash;
-                localStorage.setItem(handle, msg);
-                localStorage.setItem(handle + "_target", target);
+                // 3. Конфиденциальный перевод
+                status.innerText = "Broadcasting Secret to Sepolia...";
+                const tx = await client.confidentialTransfer(signer, target, TOKEN_ADDRESS, secretValue);
 
-                status.innerText = "Success! Handle generated.";
+                status.innerText = "Success! Secret Anchored.";
                 output.style.display = 'block';
                 output.innerHTML = `
-                    <div style="color:var(--primary); font-weight:700;">HANDLE (COPY):</div>
-                    <div style="font-size:10px; color:white;">${handle}</div>
+                    <div style="color:var(--primary); font-weight:700;">TRANSACTION HASH:</div>
+                    <div style="font-size:10px; color:white;">${tx.hash}</div>
                 `;
                 
-                output.onclick = () => {
-                    navigator.clipboard.writeText(handle);
-                    status.innerText = "Handle copied!";
-                };
-
-                saveToHistory(handle.substring(0,10) + "...");
+                saveToHistory("SENT: " + tx.hash.substring(0,10));
             } catch (e) {
-                status.innerText = "Error: Transacton Failed.";
+                console.error(e);
+                status.innerText = "Error: Transmission Failed.";
             } finally {
                 btn.disabled = false;
                 btn.classList.remove('loading');
             }
         }
 
-        // ОБНОВЛЕННАЯ ФУНКЦИЯ РАСШИФРОВКИ С АНИМАЦИЕЙ СКАНЕРА
+        // ПОЛУЧЕНИЕ (DECRYPT)
         async function handleDecrypt() {
             if (!signer) return alert("Connect wallet!");
-            const hash = document.getElementById('hashInput').value.trim();
-            if (!hash) return alert("Please enter an encryption handle.");
-
-            const currentAddr = (await signer.getAddress()).toLowerCase();
+            
             const status = document.getElementById('status-msg');
             const output = document.getElementById('output-area');
             const btn = document.getElementById('decryptBtn');
             
-            // Запуск визуальной проверки
             btn.disabled = true;
             btn.classList.add('loading');
-            status.innerText = "Verifying IBE Identity...";
-            output.style.display = 'none';
+            status.innerText = "Opening Confidential Channel...";
 
-            // Имитация "сканирования" кошелька через интервалы
-            setTimeout(() => {
-                status.innerText = "Scanning Wallet Signature...";
+            try {
+                const client = await initClient();
+                const address = await signer.getAddress();
+
+                // 1. Получаем ключи через подпись
+                const keys = await client.ensureAccount(signer);
+
+                // 2. Читаем баланс из Fairblock (там спрятано наше число)
+                status.innerText = "Scanning Blockchain for Secrets...";
+                const balance = await client.getConfidentialBalance(address, keys.privateKey, TOKEN_ADDRESS);
                 
-                setTimeout(() => {
-                    const savedMsg = localStorage.getItem(hash);
-                    const savedTarget = localStorage.getItem(hash + "_target")?.toLowerCase();
+                const packedValue = BigInt(balance.amount);
 
-                    btn.disabled = false;
-                    btn.classList.remove('loading');
-
-                    if (savedMsg && currentAddr === savedTarget) {
-                        status.innerText = "Identity Verified. Access Granted.";
-                        output.style.display = 'block';
-                        output.innerHTML = `
-                            <div style="color:var(--primary); font-weight:700;">SECRET MESSAGE:</div>
-                            <div style="color:white; font-size:14px; padding:10px; border-left: 2px solid var(--primary); background: rgba(255,255,255,0.05);">"${savedMsg}"</div>
-                        `;
-                    } else if (savedMsg && currentAddr !== savedTarget) {
-                        status.innerText = "ACCESS DENIED: Identity mismatch.";
-                        alert("Access Denied: Your wallet address (" + currentAddr.substring(0,6) + "...) is not authorized to decrypt this message.");
-                    } else {
-                        status.innerText = "Error: Handle not found in local nodes.";
-                    }
-                }, 1000);
-            }, 800);
+                if (packedValue === 0n) {
+                    status.innerText = "Inbox Empty.";
+                    output.style.display = 'none';
+                } else {
+                    const decoded = unpackData(packedValue);
+                    status.innerText = "Identity Verified. Access Granted.";
+                    output.style.display = 'block';
+                    output.innerHTML = `
+                        <div style="color:var(--primary); font-weight:700;">DECRYPTED PAYLOAD:</div>
+                        <div style="color:white; font-size:14px; padding:10px; border-left: 2px solid var(--primary); background: rgba(255,255,255,0.05);">
+                            TEXT: "${decoded.text}"<br>
+                            NUMBER: ${decoded.number}
+                        </div>
+                    `;
+                }
+            } catch (e) {
+                console.error(e);
+                status.innerText = "Decryption Error.";
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('loading');
+            }
         }
 
         function saveToHistory(item) {
