@@ -5,13 +5,9 @@ const SEPOLIA_RPC = "https://ethereum-sepolia.publicnode.com";
 const CHAIN_ID = 11155111;
 
 export async function initClient() {
-    const client = new ConfidentialTransferClient(SEPOLIA_RPC, CHAIN_ID);
-    
-    await client.init({
-        wasmURL: 'https://esm.sh/@fairblock/stabletrust/dist/index.wasm' 
+    return new ConfidentialTransferClient(SEPOLIA_RPC, CHAIN_ID, {
+        wasmURL: 'https://esm.sh/@fairblock/stabletrust/dist/index.wasm'
     });
-    
-    return client;
 }
 
 export function packData(text, number) {
